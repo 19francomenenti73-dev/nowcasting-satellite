@@ -2,8 +2,8 @@ name: Auto-Update Satellite Nowcasting Open
 
 on:
   schedule:
-    - cron: '*/15 * * * *' # Esegue ogni 15 minuti
-  workflow_dispatch:        # Permette l'avvio manuale dalla tab Actions
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 
 jobs:
   build-maps:
@@ -31,7 +31,8 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add output/
+          mkdir -p output
+          git add output/ || true
           git commit -m "Update open satellite frames: $(date -u +'%Y-%m-%d %H:%M UTC')" || echo "No changes"
-          git push
+          git push || echo "No push needed"
           
