@@ -42,7 +42,7 @@
     L.control.zoom({ position: 'topright' }).addTo(map);
 
     // Mappa base OpenStreetMap
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    let baseMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
       attribution: '© OpenStreetMap'
     }).addTo(map);
@@ -55,7 +55,7 @@
     let isPlaying = true;
     let mode = 'satellite';
 
-    // Calcola la data di ieri per sicurezza disponibilità immagini NASA
+    // Data di ieri per la NASA
     let d = new Date();
     d.setDate(d.getDate() - 1);
     let dateStr = d.toISOString().split('T')[0];
@@ -63,8 +63,17 @@
     function setMode(selectedMode) {
       mode = selectedMode;
       if (timer) clearInterval(timer);
-      if (currentLayer) map.removeLayer(currentLayer);
-      radarLayers.forEach(l => map.removeLayer(l));
+      
+      // Rimuovi pulito il layer satellitare se presente
+      if (currentLayer) {
+        map.removeLayer(currentLayer);
+        currentLayer = null;
+      }
+      
+      // Rimuovi pulito tutti i layer radar precedenti (risolve il disallineamento)
+      radarLayers.forEach(item => {
+        if (item.layer) map.removeLayer(item.layer);
+      });
       radarLayers = [];
 
       document.getElementById('btn-sat').className = mode === 'satellite' ? 'btn btn-active' : 'btn';
@@ -78,11 +87,10 @@
       }
     }
 
-    // 1. Carica il Satellite NASA (Immagine reale in alta definizione)
+    // 1. Satellite NASA
     function loadNASA_Satellite() {
       document.getElementById('time-label').textContent = `Satellite NASA (Data: ${dateStr})`;
       
-      // Tile Layer ufficiale NASA GIBS (VIIRS True Color)
       currentLayer = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`, {
         tileSize: 256,
         maxZoom: 9,
@@ -91,7 +99,7 @@
       }).addTo(map);
     }
 
-    // 2. Carica il Radar Pioggia Animato
+    // 2. Radar Pioggia
     async function loadRainViewer_Radar() {
       document.getElementById('time-label').textContent = "Caricamento animazione radar...";
       try {
@@ -144,7 +152,7 @@
       document.getElementById('btn-play').textContent = isPlaying ? "Pausa" : "Play";
     }
 
-    // Avvio predefinito su Satellite NASA
+    // Avvio predefinito
     setMode('satellite');
   </script>
 
