@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nowcasting Satellite & Radar</title>
-  <!-- Leaflet CSS per la mappa interattiva -->
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body { margin: 0; padding: 0; background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #fff; }
@@ -23,7 +23,7 @@
 
   <div id="header">
     <h1>SATELLITE & RADAR LIVE</h1>
-    <div id="time-label">Caricamento fotogrammi in corso...</div>
+    <div id="time-label">Caricamento fotogrammi...</div>
   </div>
   
   <div id="map"></div>
@@ -41,10 +41,10 @@
     let map = L.map('map', { zoomControl: false }).setView([42.5, 12.5], 6);
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // Sfondo mappa scuro ed elegante (CartoDB)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Mappa base OpenStreetMap 100% libera e gratuita (Zero API Key)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      subdomains: 'abcd'
+      attribution: '© OpenStreetMap'
     }).addTo(map);
 
     let radarFrames = [];
@@ -66,6 +66,9 @@
         }
         if (data.satellite && data.satellite.infrared) {
           satFrames = data.satellite.infrared.map(item => item.path);
+        } else {
+          // Se il satellite non è presente, usa i frame radar
+          satFrames = radarFrames;
         }
 
         setMode('satellite');
@@ -76,13 +79,13 @@
 
     function setMode(mode) {
       currentMode = mode;
-      currentFrames = (mode === 'satellite') ? satFrames : radarFrames;
-      animIndex = currentFrames.length - 1;
-
+      currentFrames = (mode === 'satellite' && satFrames.length > 0) ? satFrames : radarFrames;
+      
       document.getElementById('btn-sat').className = mode === 'satellite' ? 'btn btn-active' : 'btn';
       document.getElementById('btn-radar').className = mode === 'radar' ? 'btn btn-active' : 'btn';
 
       if (currentFrames.length > 0) {
+        animIndex = currentFrames.length - 1;
         updateLayer();
         startAnimation();
       }
@@ -97,17 +100,16 @@
       if (weatherLayer) map.removeLayer(weatherLayer);
 
       let path = currentFrames[animIndex];
-      // Generatore tessere RainViewer (0 = infrarosso sat, 2 = radar)
-      let colorCode = currentMode === 'satellite' ? 0 : 2;
-      let tileUrl = `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/${colorCode}/1_1.png`;
+      // Generatore tessere RainViewer
+      let tileUrl = `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`;
 
       weatherLayer = L.tileLayer(tileUrl, {
         tileSize: 256,
-        opacity: 0.85,
+        opacity: 0.7,
         transparent: true
       }).addTo(map);
 
-      document.getElementById('time-label').textContent = `Modo: ${currentMode.toUpperCase()} (${animIndex + 1} di ${currentFrames.length})`;
+      document.getElementById('time-label').textContent = `Fotogramma ${animIndex + 1} di ${currentFrames.length}`;
     }
 
     function startAnimation() {
@@ -116,7 +118,7 @@
         if (!isPlaying) return;
         animIndex = (animIndex + 1) % currentFrames.length;
         updateLayer();
-      }, 700); // Velocità del loop temporale
+      }, 700);
     }
 
     function togglePlay() {
