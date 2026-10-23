@@ -37,13 +37,13 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // Mappa centrata sull'Italia con stile scuro professionale
+    // Mappa centrata sull'Italia con OpenStreetMap libero al 100%
     let map = L.map('map', { zoomControl: false }).setView([42.5, 12.5], 6);
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      attribution: '© OpenStreetMap contributors & CARTO'
+      attribution: '© OpenStreetMap'
     }).addTo(map);
 
     let radarFrames = [];
@@ -54,7 +54,7 @@
     let isPlaying = true;
     let currentMode = 'radar';
 
-    // Calcolo data sicura NASA (ieri, per evitare ritardi di pubblicazione giornaliera)
+    // Calcolo data sicura NASA (ieri)
     let d = new Date();
     d.setDate(d.getDate() - 1);
     let nasaDate = d.toISOString().split('T')[0];
@@ -67,7 +67,7 @@
         if (data.radar && data.radar.past) {
           radarFrames = data.radar.past;
           buildRadarLayers();
-          setMode('radar'); // Parte di default su Radar Pioggia
+          setMode('radar');
         }
       } catch (e) {
         document.getElementById('time-label').textContent = "Errore di connessione";
@@ -94,21 +94,17 @@
       currentMode = mode;
       if (timer) clearInterval(timer);
 
-      // Aggiorna stile bottoni
       document.getElementById('btn-sat').className = mode === 'satellite' ? 'btn btn-active' : 'btn';
       document.getElementById('btn-radar').className = mode === 'radar' ? 'btn btn-active' : 'btn';
 
-      // Gestione Layer Satellite NASA
       if (satLayer) {
         map.removeLayer(satLayer);
         satLayer = null;
       }
 
       if (mode === 'satellite') {
-        // Nascondi radar
         radarLayers.forEach(l => l.layer.setOpacity(0));
         
-        // Mostra Satellite NASA
         satLayer = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${nasaDate}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`, {
           tileSize: 256,
           maxZoom: 9,
@@ -119,11 +115,9 @@
 
         document.getElementById('mode-label').textContent = "SATELLITE NASA";
         document.getElementById('time-label').textContent = `Data: ${nasaDate}`;
-        document.getElementById('btn-play').style.display = 'none'; // Nascondi play in modalità statica
+        document.getElementById('btn-play').style.display = 'none';
       } else {
-        // Mostra Radar Pioggia
         document.getElementById('mode-label').textContent = "RADAR PIOGGIA";
-        document.getElementById('btn-playstyle').style = 'block';
         document.getElementById('btn-play').style.display = 'block';
         
         if (radarLayers.length > 0) {
