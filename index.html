@@ -41,7 +41,7 @@
     let map = L.map('map', { zoomControl: false }).setView([42.5, 12.5], 6);
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // Mappa base OpenStreetMap pulita
+    // Mappa base OpenStreetMap di supporto
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
       attribution: '© OpenStreetMap'
@@ -55,7 +55,7 @@
     let isPlaying = true;
     let currentMode = 'composite';
 
-    // Data di riferimento per il satellite NASA
+    // Calcolo data sicura per la NASA (ieri)
     let d = new Date();
     d.setDate(d.getDate() - 1);
     let dateStr = d.toISOString().split('T')[0];
@@ -99,16 +99,15 @@
       document.getElementById('btn-radar').className = mode === 'radar' ? 'btn btn-active' : 'btn';
       document.getElementById('btn-composite').className = mode === 'composite' ? 'btn btn-active' : 'btn';
 
-      let labels = { 'satellite': 'SATELLITE', 'radar': 'RADAR PIOGGIA', 'composite': 'COMPOSITO' };
+      let labels = { 'satellite': 'SATELLITE NASA', 'radar': 'RADAR PIOGGIA', 'composite': 'COMPOSITO' };
       document.getElementById('mode-label').textContent = labels[mode];
 
-      // Rimuovi vecchio layer satellitare
+      // Gestione layer Satellitare NASA
       if (satLayer) {
         map.removeLayer(satLayer);
         satLayer = null;
       }
 
-      // Aggiungi satellite NASA se richiesto (Satellite o Composito)
       if (mode === 'satellite' || mode === 'composite') {
         satLayer = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`, {
           tileSize: 256,
@@ -125,7 +124,7 @@
         if (mode === 'radar' || mode === 'composite') {
           startLoop();
         } else {
-          document.getElementById('time-label').textContent = `NASA (${dateStr})`;
+          document.getElementById('time-label').textContent = `Aggiornato (${dateStr})`;
         }
       }
     }
