@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nowcasting Meteo Live</title>
+  <title>Nowcasting Meteo Open Source</title>
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
@@ -14,166 +14,30 @@
     
     #map { width: 100vw; height: calc(100vh - 95px); background: #0b0f19; }
     
-    #controls { padding: 8px; background: #1e293b; display: flex; justify-content: center; align-items: center; gap: 4px; border-top: 1px solid #334155; position: fixed; bottom: 0; width: 100%; box-sizing: border-box; z-index: 1000; }
-    .btn { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 10px 8px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 11px; flex: 1; text-align: center; max-width: 110px; }
+    #controls { padding: 8px; background: #1e293b; display: flex; justify-content: center; align-items: center; gap: 6px; border-top: 1px solid #334155; position: fixed; bottom: 0; width: 100%; box-sizing: border-box; z-index: 1000; }
+    .btn { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 10px 14px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 12px; flex: 1; text-align: center; max-width: 140px; }
     .btn-active { background: #f59e0b; color: #000; border-color: #f59e0b; }
   </style>
 </head>
 <body>
 
   <div id="status-bar">
-    <span id="mode-label">COMPOSITO</span>
-    <span id="time-label">Caricamento in corso...</span>
+    <span id="mode-label">RADAR PIOGGIA</span>
+    <span id="time-label">Caricamento...</span>
   </div>
   
   <div id="map"></div>
 
   <div id="controls">
-    <button class="btn" id="btn-sat" onclick="setMode('satellite')">Satellite IR</button>
-    <button class="btn" id="btn-radar" onclick="setMode('radar')">Radar</button>
-    <button class="btn btn-active" id="btn-composite" onclick="setMode('composite')">Composito</button>
+    <button class="btn" id="btn-sat" onclick="setMode('satellite')">Satellite NASA</button>
+    <button class="btn btn-active" id="btn-radar" onclick="setMode('radar')">Radar Pioggia</button>
     <button class="btn" id="btn-play" onclick="togglePlay()">Pausa</button>
   </div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // Mappa centrata sull'Italia
+    // Mappa centrata sull'Italia con OpenStreetMap 100% libero
     let map = L.map('map', { zoomControl: false }).setView([42.5, 12.5], 6);
-    L.control.zoom({ position: 'topright' }).addTo(map);
-
-    // Mappa base OpenStreetMap pulita e libera al 100%
-    let baseMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
-
-    let weatherFrames = [];
-    let layerPool = [];
-    let currentIndex = 0;
-    let timer = null;
-    let isPlaying = true;
-    let currentMode = 'composite';
-
-    async function initWeather() {
-      try {
-        let res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
-        let data = await res.json();
-        
-        // RainViewer fornisce sia il radar passato che il satellite IR passato sincronizzati
-        let radarPast = (data.radar && data.radar.past) ? data.radar.past : [];
-        let satInfrared = (data.satellite && data.satellite.infrared) ? data.satellite.infrared : [];
-
-        if (radarPast.length === 0) {
-          document.getElementById('time-label').textContent = "Dati non disponibili";
-          return;
-        }
-
-        // Creazione della timeline unificata basata sui timestamp del radar
-        weatherFrames = radarPast.map(r => {
-          // Trova il corrispondente frame satellitare IR con lo stesso timestamp (o il più vicino)
-          let satMatch = satInfrared.find(s => s.time === r.time) || satInfrared[satInfrared.length - 1];
-          return {
-            time: r.time,
-            radarPath: r.path,
-            satPath: satMatch ? satMatch.path : r.path
-          };
-        });
-
-        buildLayers();
-        setMode('composite');
-      } catch (e) {
-        document.getElementById('time-label').textContent = "Errore di connessione";
-      }
-    }
-
-    function buildLayers() {
-      layerPool.forEach(item => {
-        if (item.satLayer) map.removeLayer(item.satLayer);
-        if (item.radarLayer) map.removeLayer(item.radarLayer);
-      });
-      layerPool = [];
-
-      weatherFrames.forEach((item, idx) => {
-        // Layer Satellite IR di RainViewer (schema colore 0 o 1)
-        let satUrl = `https://tilecache.rainviewer.com${item.satPath}/256/{z}/{x}/{y}/1/1_1.png`;
-        let satLayer = L.tileLayer(satUrl, {
-          tileSize: 256,
-          opacity: 0,
-          transparent: true,
-          zIndex: 50 + idx
-        }).addTo(map);
-
-        // Layer Radar Pioggia di RainViewer (schema colore 2 - Universal Blue/Colorato)
-        let radarUrl = `https://tilecache.rainviewer.com${item.radarPath}/256/{z}/{x}/{y}/2/1_1.png`;
-        let radarLayer = L.tileLayer(radarUrl, {
-          tileSize: 256,
-          opacity: 0,
-          transparent: true,
-          zIndex: 150 + idx
-        }).addTo(map);
-
-        layerPool.push({ satLayer, radarLayer, time: item.time });
-      });
-    }
-
-    function setMode(mode) {
-      currentMode = mode;
-      if (timer) clearInterval(timer);
-
-      document.getElementById('btn-sat').className = mode === 'satellite' ? 'btn btn-active' : 'btn';
-      document.getElementById('btn-radar').className = mode === 'radar' ? 'btn btn-active' : 'btn';
-      document.getElementById('btn-composite').className = mode === 'composite' ? 'btn btn-active' : 'btn';
-
-      let labels = { 'satellite': 'SATELLITE IR', 'radar': 'RADAR PIOGGIA', 'composite': 'COMPOSITO' };
-      document.getElementById('mode-label').textContent = labels[mode];
-
-      if (layerPool.length > 0) {
-        currentIndex = layerPool.length - 1;
-        showFrame(currentIndex);
-        startLoop();
-      }
-    }
-
-    function showFrame(index) {
-      if (layerPool.length === 0) return;
-
-      layerPool.forEach((item, idx) => {
-        let isCurrent = (idx === index);
-        
-        // Gestione opacità Satellite IR
-        if (item.satLayer) {
-          let showSat = isCurrent && (currentMode === 'satellite' || currentMode === 'composite');
-          item.satLayer.setOpacity(showSat ? 0.85 : 0);
-        }
-        
-        // Gestione opacità Radar Pioggia
-        if (item.radarLayer) {
-          let showRadar = isCurrent && (currentMode === 'radar' || currentMode === 'composite');
-          item.radarLayer.setOpacity(showRadar ? 0.9 : 0);
-        }
-      });
-
-      let timeStr = new Date(layerPool[index].time * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      document.getElementById('time-label').textContent = `${timeStr} (${index + 1}/${layerPool.length})`;
-    }
-
-    function startLoop() {
-      if (timer) clearInterval(timer);
-      timer = setInterval(() => {
-        if (!isPlaying || layerPool.length === 0) return;
-        currentIndex = (currentIndex + 1) % layerPool.length;
-        showFrame(currentIndex);
-      }, 700);
-    }
-
-    function togglePlay() {
-      isPlaying = !isPlaying;
-      document.getElementById('btn-play').textContent = isPlaying ? "Pausa" : "Play";
-    }
-
-    initWeather();
-  </script>
-
-</body>
-</html>
+    L.control.zoom({
+      
