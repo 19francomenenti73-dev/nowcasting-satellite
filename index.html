@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nowcasting Satellite & Radar Live</title>
+  <title>Sala Operativa Meteo - NASA & Radar</title>
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
@@ -15,120 +15,128 @@
     #map { width: 100vw; height: calc(100vh - 105px); background: #0b0f19; }
     
     #controls { padding: 8px; background: #1e293b; display: flex; justify-content: center; align-items: center; gap: 6px; border-top: 1px solid #334155; position: fixed; bottom: 0; width: 100%; box-sizing: border-box; z-index: 1000; }
-    .btn { background: #38bdf8; color: #0b0f19; border: none; padding: 10px 12px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 12px; flex: 1; max-width: 130px; }
+    .btn { background: #38bdf8; color: #0b0f19; border: none; padding: 10px 12px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 12px; flex: 1; max-width: 140px; }
     .btn-active { background: #f59e0b; color: #000; }
   </style>
 </head>
 <body>
 
   <div id="header">
-    <h1>NOWCASTING LIVE</h1>
-    <div id="time-label">Inizializzazione mappa...</div>
+    <h1>SALA OPERATIVA METEO</h1>
+    <div id="time-label">Caricamento dati in corso...</div>
   </div>
   
   <div id="map"></div>
 
   <div id="controls">
-    <button class="btn" id="btn-play" onclick="togglePlay()">Pausa</button>
-    <button class="btn btn-active" id="btn-sat" onclick="switchMode('satellite')">Satellite IR</button>
-    <button class="btn" id="btn-radar" onclick="switchMode('radar')">Radar Pioggia</button>
+    <button class="btn btn-active" id="btn-sat" onclick="setMode('satellite')">Satellite NASA</button>
+    <button class="btn" id="btn-radar" onclick="setMode('radar')">Radar Pioggia</button>
+    <button class="btn" id="btn-play" style="display:none;" onclick="togglePlay()">Pausa</button>
   </div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // Inizializzazione mappa
+    // Inizializzazione mappa centrata sull'Italia
     let map = L.map('map', { zoomControl: false }).setView([42.5, 12.5], 6);
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // Fondo Mappa OpenStreetMap
+    // Mappa base OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    let radarPaths = [];
-    let satPaths = [];
-    let layersPool = [];
-    let currentIndex = 0;
+    let currentLayer = null;
+    let radarFrames = [];
+    let radarLayers = [];
+    let animIndex = 0;
     let timer = null;
     let isPlaying = true;
-    let currentMode = 'satellite';
+    let mode = 'satellite';
 
-    async function initWeather() {
-      document.getElementById('time-label').textContent = "Download fotogrammi...";
+    // Calcola la data di ieri per sicurezza disponibilità immagini NASA
+    let d = new Date();
+    d.setDate(d.getDate() - 1);
+    let dateStr = d.toISOString().split('T')[0];
+
+    function setMode(selectedMode) {
+      mode = selectedMode;
+      if (timer) clearInterval(timer);
+      if (currentLayer) map.removeLayer(currentLayer);
+      radarLayers.forEach(l => map.removeLayer(l));
+      radarLayers = [];
+
+      document.getElementById('btn-sat').className = mode === 'satellite' ? 'btn btn-active' : 'btn';
+      document.getElementById('btn-radar').className = mode === 'radar' ? 'btn btn-active' : 'btn';
+      document.getElementById('btn-play').style.display = mode === 'radar' ? 'block' : 'none';
+
+      if (mode === 'satellite') {
+        loadNASA_Satellite();
+      } else {
+        loadRainViewer_Radar();
+      }
+    }
+
+    // 1. Carica il Satellite NASA (Immagine reale in alta definizione)
+    function loadNASA_Satellite() {
+      document.getElementById('time-label').textContent = `Satellite NASA (Data: ${dateStr})`;
+      
+      // Tile Layer ufficiale NASA GIBS (VIIRS True Color)
+      currentLayer = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${dateStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`, {
+        tileSize: 256,
+        maxZoom: 9,
+        opacity: 0.9,
+        attribution: 'NASA EOSDIS GIBS'
+      }).addTo(map);
+    }
+
+    // 2. Carica il Radar Pioggia Animato
+    async function loadRainViewer_Radar() {
+      document.getElementById('time-label').textContent = "Caricamento animazione radar...";
       try {
         let res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
         let data = await res.json();
         
         if (data.radar && data.radar.past) {
-          radarPaths = data.radar.past.map(item => ({ path: item.path, time: item.time }));
-        }
-        if (data.satellite && data.satellite.infrared) {
-          satPaths = data.satellite.infrared.map(item => ({ path: item.path, time: item.time }));
-        }
+          radarFrames = data.radar.past;
+          
+          radarFrames.forEach((item, idx) => {
+            let tileUrl = `https://tilecache.rainviewer.com${item.path}/256/{z}/{x}/{y}/2/1_1.png`;
+            let l = L.tileLayer(tileUrl, {
+              tileSize: 256,
+              opacity: 0,
+              transparent: true,
+              zIndex: 100 + idx
+            }).addTo(map);
+            radarLayers.push({ layer: l, time: item.time });
+          });
 
-        switchMode('satellite');
+          animIndex = radarLayers.length - 1;
+          showRadarFrame(animIndex);
+          startRadarLoop();
+        }
       } catch (e) {
-        document.getElementById('time-label').textContent = "Errore caricamento dati meteo";
+        document.getElementById('time-label').textContent = "Errore caricamento radar";
       }
     }
 
-    function switchMode(mode) {
-      currentMode = mode;
-      document.getElementById('btn-sat').className = mode === 'satellite' ? 'btn btn-active' : 'btn';
-      document.getElementById('btn-radar').className = mode === 'radar' ? 'btn btn-active' : 'btn';
-
-      // Rimuovi vecchi layer
-      layersPool.forEach(l => map.removeLayer(l.layer));
-      layersPool = [];
-
-      let sourcePaths = (mode === 'satellite' && satPaths.length > 0) ? satPaths : radarPaths;
-      let colorScheme = (mode === 'satellite') ? 0 : 2; // 0 = Infrarosso Nubi, 2 = Riflettività Radar Pioggia
-
-      if (sourcePaths.length === 0) return;
-
-      // Pre-carica tutti i layer in mappa ma trasparenti per evitare lo sfarfallio (no sfarfallio)
-      sourcePaths.forEach((item, idx) => {
-        let tileUrl = `https://tilecache.rainviewer.com${item.path}/256/{z}/{x}/{y}/${colorScheme}/1_1.png`;
-        let layer = L.tileLayer(tileUrl, {
-          tileSize: 256,
-          opacity: 0,
-          transparent: true,
-          zIndex: 100 + idx
-        }).addTo(map);
-
-        layersPool.push({ layer: layer, time: item.time });
+    function showRadarFrame(index) {
+      if (radarLayers.length === 0) return;
+      radarLayers.forEach((item, idx) => {
+        item.layer.setOpacity(idx === index ? 0.8 : 0);
       });
-
-      currentIndex = layersPool.length - 1;
-      showFrame(currentIndex);
-      startLoop();
+      let timeStr = new Date(radarLayers[index].time * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('time-label').textContent = `Radar Pioggia - Ore ${timeStr} (${index + 1}/${radarLayers.length})`;
     }
 
-    function showFrame(index) {
-      if (layersPool.length === 0) return;
-
-      // Rendi visibile SOLO il fotogramma corrente, gli altri nascosti
-      layersPool.forEach((item, idx) => {
-        if (idx === index) {
-          item.layer.setOpacity(0.8);
-        } else {
-          item.layer.setOpacity(0);
-        }
-      });
-
-      let timeStr = new Date(layersPool[index].time * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      document.getElementById('time-label').textContent = `${currentMode.toUpperCase()} - Ore ${timeStr} (${index + 1}/${layersPool.length})`;
-    }
-
-    function startLoop() {
+    function startRadarLoop() {
       if (timer) clearInterval(timer);
       timer = setInterval(() => {
-        if (!isPlaying || layersPool.length === 0) return;
-        currentIndex = (currentIndex + 1) % layersPool.length;
-        showFrame(currentIndex);
-      }, 800); // 800ms di intervallo per un'animazione fluida e riposante
+        if (!isPlaying || mode !== 'radar') return;
+        animIndex = (animIndex + 1) % radarLayers.length;
+        showRadarFrame(animIndex);
+      }, 700);
     }
 
     function togglePlay() {
@@ -136,7 +144,8 @@
       document.getElementById('btn-play').textContent = isPlaying ? "Pausa" : "Play";
     }
 
-    initWeather();
+    // Avvio predefinito su Satellite NASA
+    setMode('satellite');
   </script>
 
 </body>
