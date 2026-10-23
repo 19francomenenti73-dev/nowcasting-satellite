@@ -2,7 +2,7 @@ name: Auto-Update Satellite Nowcasting Open
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Dependencies
         run: |
@@ -25,14 +25,13 @@ jobs:
 
       - name: Run Open Satellite Engine
         run: |
-          python process_sat_open.py
+          python scripts/process_sat_open.py
 
       - name: Commit and Push Output
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          mkdir -p output
-          git add output/ || true
-          git commit -m "Update open satellite frames: $(date -u +'%Y-%m-%d %H:%M UTC')" || echo "No changes"
+          git add -f output/*.png || true
+          git commit -m "Update open satellite frames: $(date -u +'%Y-%m-%d %H:%M UTC')" || echo "No changes to commit"
           git push || echo "No push needed"
           
