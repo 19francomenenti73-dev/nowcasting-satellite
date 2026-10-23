@@ -3,99 +3,73 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nowcasting Satellite Italia - Interattivo</title>
+  <title>Nowcasting Satellite</title>
   <style>
-    body { background-color: #0f172a; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 15px; }
-    h1 { color: #38bdf8; font-size: 22px; margin-bottom: 15px; }
-    .grid { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
-    .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 8px; max-width: 500px; width: 100%; cursor: pointer; transition: transform 0.2s; }
-    .card:hover { transform: scale(1.02); border-color: #38bdf8; }
-    .card img { width: 100%; height: auto; border-radius: 5px; display: block; }
-    .label { margin-top: 6px; font-weight: bold; color: #f59e0b; font-size: 14px; }
+    body { background-color: #0b0f19; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; margin: 0; padding: 10px; }
+    h1 { color: #38bdf8; font-size: 20px; margin: 10px 0 5px 0; }
+    p { color: #94a3b8; font-size: 12px; margin-bottom: 15px; }
     
-    /* Fullscreen Modal Player */
-    #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; padding: 10px; box-sizing: border-box; }
-    #modal img { max-width: 100%; max-height: 75vh; border-radius: 6px; border: 2px solid #38bdf8; }
-    #modal-title { color: #38bdf8; font-size: 18px; margin: 10px 0; font-weight: bold; }
-    #modal-controls { display: flex; gap: 10px; margin-top: 10px; }
-    .btn { background: #38bdf8; color: #0f172a; border: none; padding: 10px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; font-size: 14px; }
+    .grid { display: flex; flex-direction: column; gap: 12px; align-items: center; max-width: 600px; margin: 0 auto; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 10px; width: 100%; box-sizing: border-box; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+    .card img { width: 100%; height: auto; border-radius: 6px; display: block; background: #0f172a; }
+    .label { margin-top: 8px; font-weight: bold; color: #f59e0b; font-size: 14px; }
+
+    /* Modale a tutto schermo corretta e isolata */
+    #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.95); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
+    #modal-content { background: #1e293b; padding: 15px; border-radius: 12px; border: 1px solid #38bdf8; max-width: 95%; width: 450px; display: flex; flex-direction: column; align-items: center; }
+    #modal-title { color: #38bdf8; font-size: 16px; margin-bottom: 10px; font-weight: bold; text-align: center; }
+    #modal-img { width: 100%; height: auto; border-radius: 6px; border: 1px solid #475569; }
+    .modal-buttons { display: flex; gap: 10px; margin-top: 15px; width: 100%; }
+    .btn { flex: 1; background: #38bdf8; color: #0b0f19; border: none; padding: 12px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 14px; }
     .btn-close { background: #ef4444; color: #fff; }
   </style>
 </head>
 <body>
 
-  <h1>SATELLITE NOWCASTING ITALIA</h1>
-  <p style="font-size: 12px; color: #94a3b8; margin-top: -5px;">Tocca una mappa per aprire l'animazione radar/satellite in movimento</p>
+  <h1>SATELLITE NOWCASTING</h1>
+  <p>Dati ufficiali EUMETSAT aggiornati in tempo reale</p>
 
   <div class="grid">
-    <div class="card" onclick="openPlayer('italy_convection', 'Italia - Convection RGB')">
-      <img src="output/italy_convection.png" alt="Italia Convection RGB">
-      <div class="label">Italia - Convection RGB (Tocca per animazione)</div>
+    <div class="card" onclick="openFullscreen('output/italy_ir.png', 'Italia - Infrarosso Termico (IR)')">
+      <img src="output/italy_ir.png" alt="Italia IR" onerror="this.src='https://via.placeholder.com/600x450/1e293b/38bdf8?text=Aggiornamento+in+corso...'">
+      <div class="label">Italia - Infrarosso Termico (IR)</div>
     </div>
 
-    <div class="card" onclick="openPlayer('italy_ir', 'Italia - Infrarosso Termico')">
-      <img src="output/italy_ir.png" alt="Italia Infrarosso">
-      <div class="label">Italia - Infrarosso Termico (Tocca per animazione)</div>
+    <div class="card" onclick="openFullscreen('output/italy_wv.png', 'Italia - Vapore Acqueo (WV)')">
+      <img src="output/italy_wv.png" alt="Italia WV" onerror="this.src='https://via.placeholder.com/600x450/1e293b/38bdf8?text=Aggiornamento+in+corso...'">
+      <div class="label">Italia - Vapore Acqueo (WV)</div>
     </div>
 
-    <div class="card" onclick="openPlayer('europe_convection', 'Europa - Convection RGB')">
-      <img src="output/europe_convection.png" alt="Europa Convection RGB">
-      <div class="label">Europa - Convection RGB (Tocca per animazione)</div>
+    <div class="card" onclick="openFullscreen('output/europe_ir.png', 'Europa - Infrarosso Termico (IR)')">
+      <img src="output/europe_ir.png" alt="Europa IR" onerror="this.src='https://via.placeholder.com/600x450/1e293b/38bdf8?text=Aggiornamento+in+corso...'">
+      <div class="label">Europa - Infrarosso Termico (IR)</div>
     </div>
 
-    <div class="card" onclick="openPlayer('europe_ir', 'Europa - Infrarosso Termico')">
-      <img src="output/europe_ir.png" alt="Europa Infrarosso">
-      <div class="label">Europa - Infrarosso Termico (Tocca per animazione)</div>
+    <div class="card" onclick="openFullscreen('output/europe_wv.png', 'Europa - Vapore Acqueo (WV)')">
+      <img src="output/europe_wv.png" alt="Europa WV" onerror="this.src='https://via.placeholder.com/600x450/1e293b/38bdf8?text=Aggiornamento+in+corso...'">
+      <div class="label">Europa - Vapore Acqueo (WV)</div>
     </div>
   </div>
 
-  <!-- Modal Interattivo -->
+  <!-- Finestra modale ingrandita stabile -->
   <div id="modal">
-    <div id="modal-title">Titolo</div>
-    <img id="modal-img" src="" alt="Frame animazione">
-    <div id="modal-controls">
-      <button class="btn" onclick="togglePlay()">Pausa / Play</button>
-      <button class="btn btn-close" onclick="closePlayer()">Chiudi</button>
+    <div id="modal-content">
+      <div id="modal-title">Titolo</div>
+      <img id="modal-img" src="" alt="Zoom mappa">
+      <div class="modal-buttons">
+        <button class="btn" onclick="closeFullscreen()">Chiudi</button>
+      </div>
     </div>
   </div>
 
   <script>
-    let currentFrames = [];
-    let currentIndex = 0;
-    let intervalId = null;
-    let isPlaying = true;
-
-    function openPlayer(baseName, titleText) {
-      document.getElementById('modal-title').textContent = titleText + " (Animazione in corso)";
-      
-      // Raccoglie i fotogrammi disponibili (dal più vecchio al più recente)
-      currentFrames = [];
-      for (let i = 5; i >= 0; i--) {
-        currentFrames.push(`output/${baseName}_${i}.png`);
-      }
-      
-      currentIndex = 0;
+    function openFullscreen(imgSrc, title) {
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-img').src = imgSrc;
       document.getElementById('modal').style.display = 'flex';
-      startAnimation();
     }
 
-    function startAnimation() {
-      isPlaying = true;
-      if (intervalId) clearInterval(intervalId);
-      
-      intervalId = setInterval(() => {
-        if (!isPlaying) return;
-        currentIndex = (currentIndex + 1) % currentFrames.length;
-        document.getElementById('modal-img').src = currentFrames[currentIndex];
-      }, 600); // Velocità dell'animazione (600 millisecondi a fotogramma)
-    }
-
-    function togglePlay() {
-      isPlaying = !isPlaying;
-    }
-
-    function closePlayer() {
-      if (intervalId) clearInterval(intervalId);
+    function closeFullscreen() {
       document.getElementById('modal').style.display = 'none';
     }
   </script>
