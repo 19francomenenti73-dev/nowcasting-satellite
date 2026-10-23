@@ -1,15 +1,29 @@
 import os
 import requests
 
-# Directory di output
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-def fetch_wms_satellite(bbox, width, height, layer, filename):
-    """
-    Scarica direttamente dal server OGC WMS aperto di EUMETSAT
-    le mappe satellitari IR/RGB georeferenziate.
-    """
+MAX_HISTORY = 6  # Numero di fotogrammi storici da mantenere per l'animazione
+
+def rotate_history(base_name):
+    """Sposta i file storici per fare spazio al nuovo fotogramma"""
+    for i in range(MAX_HISTORY - 1, 0, -1):
+        old_file = os.path.join(OUTPUT_DIR, f"{base_name}_{i}.png")
+        new_file = os.path.join(OUTPUT_DIR, f"{base_name}_{i+1}.png")
+        if os.path.exists(old_file):
+            if os.path.exists(new_file):
+                os.remove(new_file)
+            os.rename(old_file, new_file)
+    
+    first_file = os.path.join(OUTPUT_DIR, f"{base_name}_0.png")
+    target_file = os.path.join(OUTPUT_DIR, f"{base_name}_1.png")
+    if os.path.exists(first_file):
+        if os.path.exists(target_file):
+            os.remove(target_file)
+        os.rename(first_file, target_file)
+
+def fetch_wms_satellite(bbox, width, height, layer, base_name):
     wms_base_url = "https://view.eumetsat.int/geoserver/wms"
 
     params = {
@@ -31,33 +45,40 @@ def fetch_wms_satellite(bbox, width, height, layer, filename):
     }
 
     try:
-        print(f"Scarico layer {layer} per {filename}...")
+        print(f"Scarico layer {layer} per {base_name}...")
         response = requests.get(wms_base_url, params=params, headers=headers, timeout=30)
 
         if response.status_code == 200 and "image" in response.headers.get("Content-Type", ""):
-            filepath = os.path.join(OUTPUT_DIR, filename)
-            with open(filepath, "wb") as f:
+            # Ruota la cronologia prima di salvare il nuovo
+            rotate_history(base_name)
+            
+            # Salva il nuovo fotogramma come _0 (il più recente) e come file principale statico
+            latest_path = os.path.join(OUTPUT_DIR, f"{base_name}_0.png")
+            static_path = os.path.join(OUTPUT_DIR, f"{base_name}.png")
+            
+            with open(latest_path, "wb") as f:
                 f.write(response.content)
-            print(f"✅ Salvato con successo: {filepath}")
+            
+            with open(static_path, "wb") as f:
+                f.write(response.content)
+                
+            print(f"✅ Salvato con successo e storico aggiornato: {base_name}")
         else:
-            print(f"❌ Errore HTTP {response.status_code} dal server WMS")
+            print(f"❌ Errore HTTP {response.status_code} dal server WMS per {base_name}")
     except Exception as e:
-        print(f"❌ Eccezione durante il download: {e}")
+        print(f"❌ Eccezione durante il download di {base_name}: {e}")
 
 if __name__ == "__main__":
-    # Coordinate Bounding Box EPSG:4326 (min_lat, min_lon, max_lat, max_lon)
-    ITALY_BBOX = "35.0,5.0,48.0,20.0"      # Italia e Mediterraneo centrale
-    EUROPE_BBOX = "30.0,-10.0,65.0,40.0"   # Europa completa
+    # Bounding Box con proporzioni corrette per evitare distorsioni e mosaici
+    ITALY_BBOX = "35.0,6.0,47.0,18.0"      # Rapporto ottimizzato per Italia
+    EUROPE_BBOX = "30.0,-10.0,60.0,30.0"   # Rapporto ottimizzato per Europa
 
-    # Nomi Layer Ufficiali EUMETSAT WMS Open
     LAYER_IR = "msg_fes:ir108"
     LAYER_CONVECTION = "msg_fes:rgb_convective"
 
-    # 1. Elaborazione ITALIA
-    fetch_wms_satellite(ITALY_BBOX, 1200, 1000, LAYER_CONVECTION, "italy_convection.png")
-    fetch_wms_satellite(ITALY_BBOX, 1200, 1000, LAYER_IR, "italy_ir.png")
-
-    # 2. Elaborazione EUROPA
-    fetch_wms_satellite(EUROPE_BBOX, 1200, 1000, LAYER_CONVECTION, "europe_convection.png")
-    fetch_wms_satellite(EUROPE_BBOX, 1200, 1000, LAYER_IR, "europe_ir.png")
+    # Download con risoluzione pulita
+    fetch_wms_satellite(ITALY_BBOX, 1000, 1000, LAYER_CONVECTION, "italy_convection")
+    fetch_wms_satellite(ITALY_BBOX, 1000, 1000, LAYER_IR, "italy_ir")
+    fetch_wms_satellite(EUROPE_BBOX, 1200, 900, LAYER_CONVECTION, "europe_convection")
+    fetch_wms_satellite(EUROPE_BBOX, 1200, 900, LAYER_IR, "europe_ir")
     
