@@ -3,75 +3,127 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nowcasting Satellite</title>
+  <title>Nowcasting Satellite & Radar</title>
+  <!-- Leaflet CSS per la mappa interattiva -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    body { background-color: #0b0f19; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; margin: 0; padding: 10px; }
-    h1 { color: #38bdf8; font-size: 20px; margin: 10px 0 5px 0; }
-    p { color: #94a3b8; font-size: 12px; margin-bottom: 15px; }
+    body { margin: 0; padding: 0; background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #fff; }
+    #header { padding: 10px; text-align: center; background: #1e293b; border-bottom: 1px solid #334155; }
+    h1 { color: #38bdf8; font-size: 18px; margin: 0 0 4px 0; }
+    #time-label { font-size: 13px; color: #f59e0b; font-weight: bold; }
     
-    .grid { display: flex; flex-direction: column; gap: 12px; align-items: center; max-width: 600px; margin: 0 auto; }
-    .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 10px; width: 100%; box-sizing: border-box; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-    .card img { width: 100%; height: auto; border-radius: 6px; display: block; background: #0f172a; }
-    .label { margin-top: 8px; font-weight: bold; color: #f59e0b; font-size: 14px; }
-
-    /* Modale a tutto schermo corretta e isolata */
-    #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.95); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
-    #modal-content { background: #1e293b; padding: 15px; border-radius: 12px; border: 1px solid #38bdf8; max-width: 95%; width: 450px; display: flex; flex-direction: column; align-items: center; }
-    #modal-title { color: #38bdf8; font-size: 16px; margin-bottom: 10px; font-weight: bold; text-align: center; }
-    #modal-img { width: 100%; height: auto; border-radius: 6px; border: 1px solid #475569; }
-    .modal-buttons { display: flex; gap: 10px; margin-top: 15px; width: 100%; }
-    .btn { flex: 1; background: #38bdf8; color: #0b0f19; border: none; padding: 12px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 14px; }
-    .btn-close { background: #ef4444; color: #fff; }
+    #map { width: 100%; height: calc(100vh - 120px); background: #0b0f19; }
+    
+    #controls { padding: 10px; background: #1e293b; display: flex; justify-content: center; align-items: center; gap: 8px; border-top: 1px solid #334155; position: fixed; bottom: 0; width: 100%; box-sizing: border-box; z-index: 1000; }
+    .btn { background: #38bdf8; color: #0b0f19; border: none; padding: 8px 14px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .btn-active { background: #f59e0b; }
   </style>
 </head>
 <body>
 
-  <h1>SATELLITE NOWCASTING</h1>
-  <p>Dati ufficiali EUMETSAT aggiornati in tempo reale</p>
+  <div id="header">
+    <h1>SATELLITE & RADAR LIVE</h1>
+    <div id="time-label">Caricamento fotogrammi in corso...</div>
+  </div>
+  
+  <div id="map"></div>
 
-  <div class="grid">
-    <div class="card" onclick="openFullscreen('output/italy_ir.png', 'Italia - Infrarosso Termico (IR)')">
-      <img src="output/italy_ir.png" alt="Italia IR" onerror="this.src='https://via.placeholder.com/600x450/1e293b/38bdf8?text=Aggiornamento+in+corso...'">
-      <div class="label">Italia - Infrarosso Termico (IR)</div>
-    </div>
-
-    <div class="card" onclick="openFullscreen('output/italy_wv.png', 'Italia - Vapore Acqueo (WV)')">
-      <img src="output/italy_wv.png" alt="Italia WV" onerror="this.src='https://via.placeholder.com/600x450/1e293b/38bdf8?text=Aggiornamento+in+corso...'">
-      <div class="label">Italia - Vapore Acqueo (WV)</div>
-    </div>
-
-    <div class="card" onclick="openFullscreen('output/europe_ir.png', 'Europa - Infrarosso Termico (IR)')">
-      <img src="output/europe_ir.png" alt="Europa IR" onerror="this.src='https://via.placeholder.com/600x450/1e293b/38bdf8?text=Aggiornamento+in+corso...'">
-      <div class="label">Europa - Infrarosso Termico (IR)</div>
-    </div>
-
-    <div class="card" onclick="openFullscreen('output/europe_wv.png', 'Europa - Vapore Acqueo (WV)')">
-      <img src="output/europe_wv.png" alt="Europa WV" onerror="this.src='https://via.placeholder.com/600x450/1e293b/38bdf8?text=Aggiornamento+in+corso...'">
-      <div class="label">Europa - Vapore Acqueo (WV)</div>
-    </div>
+  <div id="controls">
+    <button class="btn" onclick="togglePlay()">Play / Pausa</button>
+    <button class="btn btn-active" id="btn-sat" onclick="switchMode('satellite')">Satellite IR</button>
+    <button class="btn" id="btn-radar" onclick="switchMode('radar')">Radar Pioggia</button>
   </div>
 
-  <!-- Finestra modale ingrandita stabile -->
-  <div id="modal">
-    <div id="modal-content">
-      <div id="modal-title">Titolo</div>
-      <img id="modal-img" src="" alt="Zoom mappa">
-      <div class="modal-buttons">
-        <button class="btn" onclick="closeFullscreen()">Chiudi</button>
-      </div>
-    </div>
-  </div>
-
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    function openFullscreen(imgSrc, title) {
-      document.getElementById('modal-title').textContent = title;
-      document.getElementById('modal-img').src = imgSrc;
-      document.getElementById('modal').style.display = 'flex';
+    // Inizializzazione mappa centrata sull'Italia
+    let map = L.map('map', { zoomControl: false }).setView([42.5, 12.5], 6);
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // Sfondo mappa scuro ed elegante (CartoDB)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 18,
+      subdomains: 'abcd'
+    }).addTo(map);
+
+    let radarFrames = [];
+    let satFrames = [];
+    let currentFrames = [];
+    let animIndex = 0;
+    let weatherLayer = null;
+    let timer = null;
+    let isPlaying = true;
+    let currentMode = 'satellite';
+
+    async function loadWeatherData() {
+      try {
+        let res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+        let data = await res.json();
+        
+        if (data.radar && data.radar.past) {
+          radarFrames = data.radar.past.map(item => item.path);
+        }
+        if (data.satellite && data.satellite.infrared) {
+          satFrames = data.satellite.infrared.map(item => item.path);
+        }
+
+        setMode('satellite');
+      } catch (e) {
+        document.getElementById('time-label').textContent = "Errore di connessione ai dati meteo";
+      }
     }
 
-    function closeFullscreen() {
-      document.getElementById('modal').style.display = 'none';
+    function setMode(mode) {
+      currentMode = mode;
+      currentFrames = (mode === 'satellite') ? satFrames : radarFrames;
+      animIndex = currentFrames.length - 1;
+
+      document.getElementById('btn-sat').className = mode === 'satellite' ? 'btn btn-active' : 'btn';
+      document.getElementById('btn-radar').className = mode === 'radar' ? 'btn btn-active' : 'btn';
+
+      if (currentFrames.length > 0) {
+        updateLayer();
+        startAnimation();
+      }
     }
+
+    function switchMode(mode) {
+      setMode(mode);
+    }
+
+    function updateLayer() {
+      if (currentFrames.length === 0) return;
+      if (weatherLayer) map.removeLayer(weatherLayer);
+
+      let path = currentFrames[animIndex];
+      // Generatore tessere RainViewer (0 = infrarosso sat, 2 = radar)
+      let colorCode = currentMode === 'satellite' ? 0 : 2;
+      let tileUrl = `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/${colorCode}/1_1.png`;
+
+      weatherLayer = L.tileLayer(tileUrl, {
+        tileSize: 256,
+        opacity: 0.85,
+        transparent: true
+      }).addTo(map);
+
+      document.getElementById('time-label').textContent = `Modo: ${currentMode.toUpperCase()} (${animIndex + 1} di ${currentFrames.length})`;
+    }
+
+    function startAnimation() {
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        if (!isPlaying) return;
+        animIndex = (animIndex + 1) % currentFrames.length;
+        updateLayer();
+      }, 700); // Velocità del loop temporale
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+    }
+
+    loadWeatherData();
   </script>
 
 </body>
