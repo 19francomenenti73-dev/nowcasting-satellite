@@ -1,37 +1,43 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nowcasting Italia - Satellite Viewer</title>
-    <style>
-        body { background-color: #0b0f19; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 15px; }
-        h1 { color: #00d2ff; font-size: 20px; }
-        .grid { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
-        .card { background: #161e2e; border: 1px solid #00d2ff33; border-radius: 8px; padding: 10px; max-width: 500px; width: 100%; }
-        img { width: 100%; height: auto; border-radius: 5px; }
-        .label { margin-top: 8px; font-weight: bold; color: #ffb703; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nowcasting Satellite Italia</title>
+  <style>
+    body { background-color: #0f172a; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
+    h1 { color: #38bdf8; font-size: 24px; margin-bottom: 20px; }
+    .grid { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px; max-width: 550px; width: 100%; }
+    .card img { width: 100%; height: auto; border-radius: 5px; display: block; }
+    .label { margin-top: 8px; font-weight: bold; color: #f59e0b; }
+  </style>
 </head>
 <body>
-    <h1>SATELLITE NOWCASTING ITALIA</h1>
-    <div class="grid">
-        <div class="card">
-            <img src="output/italy_convection.png" alt="Italia Convection RGB">
-            <div class="label">Italia - Convection RGB</div>
-        </div>
-        <div class="card">
-            <img src="output/italy_ir.png" alt="Italia Infrarosso">
-            <div class="label">Italia - Infrarosso Termico (IR)</div>
-        </div>
-        <div class="card">
-            <img src="output/europe_convection.png" alt="Europa Convection RGB">
-            <div class="label">Europa - Convection RGB</div>
-        </div>
-        <div class="card">
-            <img src="output/europe_ir.png" alt="Europa Infrarosso">
-            <div class="label">Europa - Infrarosso Termico (IR)</div>
-        </div>
+
+  <h1>SATELLITE NOWCASTING ITALIA</h1>
+
+  <div class="grid">
+    <div class="card">
+      <img src="output/italy_convection.png" alt="Italia Convection RGB">
+      <div class="label">Italia - Convection RGB</div>
     </div>
+
+    <div class="card">
+      <img src="output/italy_ir.png" alt="Italia Infrarosso">
+      <div class="label">Italia - Infrarosso Termico (IR)</div>
+    </div>
+
+    <div class="card">
+      <img src="output/europe_convection.png" alt="Europa Convection RGB">
+      <div class="label">Europa - Convection RGB</div>
+    </div>
+
+    <div class="card">
+      <img src="output/europe_ir.png" alt="Europa Infrarosso">
+      <div class="label">Europa - Infrarosso Termico (IR)</div>
+    </div>
+  </div>
+
 </body>
 </html>
