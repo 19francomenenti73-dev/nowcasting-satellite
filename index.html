@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+l<!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sala Operativa Meteo - Composito Live</title>
+  <title>Sala Operativa Meteo - RainViewer Live</title>
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
@@ -23,7 +23,7 @@
 
   <div id="header">
     <h1>SALA OPERATIVA METEO</h1>
-    <div id="time-label">Caricamento fotogrammi in corso...</div>
+    <div id="time-label">Connessione ai dati in corso...</div>
   </div>
   
   <div id="map"></div>
@@ -42,30 +42,36 @@
     let map = L.map('map', { zoomControl: false }).setView([42.5, 12.5], 6);
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // Mappa base OpenStreetMap pulita e gratuita
+    // Mappa base OpenStreetMap (100% libera, zero chiavi API)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    let weatherFrames = [];
-    let activeLayersPool = [];
+    let satFrames = [];
+    let radarFrames = [];
+    let activePool = [];
     let animIndex = 0;
     let timer = null;
     let isPlaying = true;
-    let currentMode = 'composite'; // Default su Composito
+    let currentMode = 'composite';
 
     async function initWeather() {
       try {
         let res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
         let data = await res.json();
         
-        if (data.radar && data.radar.past) {
-          weatherFrames = data.radar.past;
-          setMode('composite');
+        if (data.satellite && data.satellite.infrared) {
+          satFrames = data.satellite.infrared;
         }
+        if (data.radar && data.radar.past) {
+          radarFrames = data.radar.past;
+        }
+
+        // Avvia direttamente in modalità composito
+        setMode('composite');
       } catch (e) {
-        document.getElementById('time-label').textContent = "Errore di connessione ai dati meteo";
+        document.getElementById('time-label').textContent = "Errore di connessione ai server meteo";
       }
     }
 
@@ -73,28 +79,32 @@
       currentMode = mode;
       if (timer) clearInterval(timer);
 
-      // Aggiorna stile bottoni
+      // Aggiorna classe attiva dei bottoni
       document.getElementById('btn-sat').className = mode === 'satellite' ? 'btn btn-active' : 'btn';
       document.getElementById('btn-radar').className = mode === 'radar' ? 'btn btn-active' : 'btn';
       document.getElementById('btn-composite').className = mode === 'composite' ? 'btn btn-active' : 'btn';
 
-      // Pulisci vecchi layer dalla mappa
-      activeLayersPool.forEach(item => {
+      // Pulisci i layer precedenti dalla mappa
+      activePool.forEach(item => {
         if (item.satLayer) map.removeLayer(item.satLayer);
         if (item.radarLayer) map.removeLayer(item.radarLayer);
       });
-      activeLayersPool = [];
+      activePool = [];
 
-      if (weatherFrames.length === 0) return;
+      // Scegli la sorgente in base al numero di fotogrammi disponibili
+      let sourceFrames = (mode === 'satellite' && satFrames.length > 0) ? satFrames : radarFrames;
+      if (sourceFrames.length === 0) sourceFrames = radarFrames;
+      if (sourceFrames.length === 0) return;
 
-      // Crea i pool di layer pre-caricati per ogni fotogramma temporale
-      weatherFrames.forEach((item, idx) => {
+      // Pre-caricamento di tutti i layer in memoria per garantire fluidità e zero sfarfallii
+      sourceFrames.forEach((item, idx) => {
         let satLayer = null;
         let radarLayer = null;
 
-        // Se serve il satellite (IR)
+        // Livello Satellite IR (Schema colore 0 o 3 per infrarosso)
         if (mode === 'satellite' || mode === 'composite') {
-          let satUrl = `https://tilecache.rainviewer.com${item.path}/256/{z}/{x}/{y}/0/1_1.png`;
+          let satPath = (satFrames[idx] && satFrames[idx].path) ? satFrames[idx].path : item.path;
+          let satUrl = `https://tilecache.rainviewer.com${satPath}/256/{z}/{x}/{y}/0/1_1.png`;
           satLayer = L.tileLayer(satUrl, {
             tileSize: 256,
             opacity: 0,
@@ -103,9 +113,10 @@
           }).addTo(map);
         }
 
-        // Se serve il radar (Pioggia)
+        // Livello Radar Pioggia (Schema colore 2)
         if (mode === 'radar' || mode === 'composite') {
-          let radarUrl = `https://tilecache.rainviewer.com${item.path}/256/{z}/{x}/{y}/2/1_1.png`;
+          let radarPath = (radarFrames[idx] && radarFrames[idx].path) ? radarFrames[idx].path : item.path;
+          let radarUrl = `https://tilecache.rainviewer.com${radarPath}/256/{z}/{x}/{y}/2/1_1.png`;
           radarLayer = L.tileLayer(radarUrl, {
             tileSize: 256,
             opacity: 0,
@@ -114,35 +125,35 @@
           }).addTo(map);
         }
 
-        activeLayersPool.push({ satLayer, radarLayer, time: item.time });
+        activePool.push({ satLayer, radarLayer, time: item.time });
       });
 
-      animIndex = activeLayersPool.length - 1;
+      animIndex = activePool.length - 1;
       showFrame(animIndex);
       startLoop();
     }
 
     function showFrame(index) {
-      if (activeLayersPool.length === 0) return;
+      if (activePool.length === 0) return;
 
-      activeLayersPool.forEach((item, idx) => {
+      activePool.forEach((item, idx) => {
         let isCurrent = (idx === index);
         if (item.satLayer) item.satLayer.setOpacity(isCurrent ? 0.75 : 0);
         if (item.radarLayer) item.radarLayer.setOpacity(isCurrent ? 0.85 : 0);
       });
 
-      let timeStr = new Date(activeLayersPool[index].time * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      let timeStr = new Date(activePool[index].time * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       let modeName = currentMode === 'composite' ? 'Composito (IR + Radar)' : (currentMode === 'satellite' ? 'Satellite IR' : 'Radar Pioggia');
-      document.getElementById('time-label').textContent = `${modeName} - Ore ${timeStr} (${index + 1}/${activeLayersPool.length})`;
+      document.getElementById('time-label').textContent = `${modeName} - Ore ${timeStr} (${index + 1}/${activePool.length})`;
     }
 
     function startLoop() {
       if (timer) clearInterval(timer);
       timer = setInterval(() => {
-        if (!isPlaying || activeLayersPool.length === 0) return;
-        animIndex = (animIndex + 1) % activeLayersPool.length;
+        if (!isPlaying || activePool.length === 0) return;
+        animIndex = (animIndex + 1) % activePool.length;
         showFrame(animIndex);
-      }, 700);
+      }, 750); // Intervallo fluido di 750ms per fotogramma
     }
 
     function togglePlay() {
