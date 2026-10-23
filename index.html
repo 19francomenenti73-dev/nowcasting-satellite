@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nowcasting Meteo Open Source</title>
+  <title>Meteo Nowcasting</title>
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
@@ -12,10 +12,10 @@
     #mode-label { color: #f59e0b; font-weight: bold; }
     #time-label { color: #38bdf8; font-weight: bold; }
     
-    #map { width: 100vw; height: calc(100vh - 95px); background: #1e293b; }
+    #map { width: 100vw; height: calc(100vh - 95px); background: #0b0f19; }
     
     #controls { padding: 8px; background: #1e293b; display: flex; justify-content: center; align-items: center; gap: 6px; border-top: 1px solid #334155; position: fixed; bottom: 0; width: 100%; box-sizing: border-box; z-index: 1000; }
-    .btn { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 10px 14px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 12px; flex: 1; text-align: center; max-width: 140px; }
+    .btn { background: #334155; color: #f8fafc; border: 1px solid #475569; padding: 10px 14px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 12px; flex: 1; text-align: center; max-width: 130px; }
     .btn-active { background: #f59e0b; color: #000; border-color: #f59e0b; }
   </style>
 </head>
@@ -23,7 +23,7 @@
 
   <div id="status-bar">
     <span id="mode-label">RADAR PIOGGIA</span>
-    <span id="time-label">Connessione...</span>
+    <span id="time-label">Caricamento...</span>
   </div>
   
   <div id="map"></div>
@@ -37,20 +37,14 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // Inizializzazione mappa centrata sull'Italia
+    // Mappa centrata sull'Italia con OpenStreetMap libero al 100%
     let map = L.map('map', { zoomControl: false }).setView([42.5, 12.5], 6);
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // Layer OpenStreetMap 100% libero
-    let osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      attribution: '© OpenStreetMap contributors'
+      attribution: '© OpenStreetMap'
     }).addTo(map);
-
-    // FIX FONDAMENTALE: Forza il ricalcolo delle dimensioni della mappa per evitare il blocco nero iniziale
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 250);
 
     let radarFrames = [];
     let radarLayers = [];
@@ -60,7 +54,7 @@
     let isPlaying = true;
     let currentMode = 'radar';
 
-    // Data sicura NASA (ieri)
+    // Calcolo data sicura NASA (ieri)
     let d = new Date();
     d.setDate(d.getDate() - 1);
     let nasaDate = d.toISOString().split('T')[0];
@@ -74,11 +68,9 @@
           radarFrames = data.radar.past;
           buildRadarLayers();
           setMode('radar');
-        } else {
-          document.getElementById('time-label').textContent = "Dati non disponibili";
         }
       } catch (e) {
-        document.getElementById('time-label').textContent = "Errore di rete";
+        document.getElementById('time-label').textContent = "Errore di connessione";
       }
     }
 
@@ -134,9 +126,6 @@
           startLoop();
         }
       }
-      
-      // Assicura che la mappa si ridisegni correttamente al cambio modalità
-      setTimeout(() => map.invalidateSize(), 50);
     }
 
     function showFrame(index) {
